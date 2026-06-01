@@ -232,15 +232,35 @@ install_opencode() {
   opencode --version 2>/dev/null || true
 }
 
-# run_install [names...] — install/update the named tools, or all of INSTALLERS.
+# run_install — install/update the tools in $DOTFILES_TOOLS (space-separated),
+# or all of INSTALLERS when that env is unset.
+#
+# Each tool runs in a subshell with `set -e`, so a single tool failing (a flaky
+# download, a missing build dep) is reported and skipped without aborting the
+# rest — a one-shot run gets as far as it can. Returns non-zero if any failed.
 run_install() {
-  local names=("$@") n
-  [[ ${#names[@]} -eq 0 ]] && names=("${INSTALLERS[@]}")
+  local names n rc=0 failed=()
+  if [[ -n "${DOTFILES_TOOLS:-}" ]]; then
+    # shellcheck disable=SC2206  # intentional word-splitting of the env list
+    names=(${DOTFILES_TOOLS})
+  else
+    names=("${INSTALLERS[@]}")
+  fi
+
   for n in "${names[@]}"; do
-    if declare -F "install_$n" >/dev/null; then
-      "install_$n"
-    else
+    if ! declare -F "install_$n" >/dev/null; then
       err "unknown tool: $n"
+      rc=1
+      failed+=("$n")
+      continue
+    fi
+    if ! ( set -e; "install_$n" ); then
+      err "install failed: $n"
+      rc=1
+      failed+=("$n")
     fi
   done
+
+  [[ ${#failed[@]} -gt 0 ]] && err "tools failed: ${failed[*]}"
+  return "$rc"
 }

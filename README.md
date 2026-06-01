@@ -7,13 +7,19 @@ Homebrew dependency — release assets are chosen by `uname`).
 ## Usage
 
 ```sh
-./setup.sh link              # symlink managed configs into ~/.config
-./setup.sh install [names]   # install/update tools into ~/.local (default: all)
-./setup.sh all               # link + install everything
+./setup.sh
 ```
 
-`install` with no names installs everything in dependency order; or name a
-subset, e.g. `./setup.sh install nvim fzf`.
+One shot: it symlinks the managed configs into `~/.config`, then installs/updates
+the tools into `~/.local`. Safe to re-run — already-linked configs and
+already-current tool versions are detected and skipped, and a tool that fails
+(flaky download, missing build dep) is reported without aborting the rest.
+
+To scope the install set (linking always runs in full):
+
+```sh
+DOTFILES_TOOLS="nvim fzf zellij" ./setup.sh
+```
 
 ## Layout
 
@@ -36,9 +42,9 @@ PATH-priority block wins.
 
 ## How it works
 
-### Linking (`./setup.sh link`)
+### Linking
 
-`symlink_one` reads each `LINKS` entry (`"<repo path>|<absolute target>"`) and:
+`run_links` (`links.sh`) feeds each `LINKS` entry to `symlink_one`, which:
 
 - skips entries whose source doesn't exist yet (warn, exit 0);
 - skips targets already pointing at the repo (idempotent);
@@ -52,7 +58,7 @@ directory linked as a single symlink. **Add a config:** drop the file under
 (`config/fish/conf.d/zz-dotfiles.fish`), so it's a single stable entry that
 shares `~/.config/fish/conf.d/` with tool-generated files without colliding.
 
-### Installing (`./setup.sh install`)
+### Installing
 
 Each tool is detected first: if already installed it runs that tool's *update*
 path, otherwise a fresh install. Tools we fetch as release archives are
@@ -60,7 +66,7 @@ version-pinned at `~/.local/<tool>/<version>` with a `current` symlink that's
 flipped atomically — so upgrades keep the old version around for rollback.
 
 Built-in installers: `rust fish node nvim claude codex lazygit fzf zellij uv opencode`.
-Versions are env-overridable, e.g. `NVIM_VERSION=v0.10.4 ./setup.sh install nvim`.
+Versions are env-overridable, e.g. `NVIM_VERSION=v0.10.4 ./setup.sh`.
 
 **Add a tool:** add an `install_<name>` function in `install/tools.sh` (follow
 the detect→update / else install convention; reuse `install_versioned` or
