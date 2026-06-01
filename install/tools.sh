@@ -276,13 +276,11 @@ run_install() {
   return "$rc"
 }
 
-# set_default_shell — opt-in (DOTFILES_SET_SHELL=1): make the installed fish the
-# login shell. Needs sudo to whitelist it in /etc/shells, and chsh may prompt for
-# your password — so it's off by default and never aborts setup. Uses the stable
+# set_default_shell — make the installed fish the login shell. Invoked only by
+# `./setup.sh fish`. Needs sudo to whitelist it in /etc/shells, and chsh may
+# prompt for your password; never aborts setup. Uses the stable
 # ~/.local/fish/current path (unaffected by version bumps).
 set_default_shell() {
-  [[ -n "${DOTFILES_SET_SHELL:-}" ]] || return 0
-
   case "${SHELL:-}" in
     */fish) log "set-shell: login shell is already fish"; return 0 ;;
   esac
