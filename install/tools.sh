@@ -18,7 +18,7 @@
 INSTALLERS=(rust fish node nvim claude codex lazygit fzf uv opencode)
 
 # Pinned versions — change in one place. Override via env, e.g. NVIM_VERSION=v0.10.4.
-NVIM_VERSION="${NVIM_VERSION:-v0.11.0}"
+NVIM_VERSION="${NVIM_VERSION:-v0.12.2}"
 FISH_VERSION="${FISH_VERSION:-4.0.2}"
 LAZYGIT_VERSION="${LAZYGIT_VERSION:-v0.44.1}"
 FZF_VERSION="${FZF_VERSION:-v0.56.3}"

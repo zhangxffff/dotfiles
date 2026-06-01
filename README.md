@@ -24,8 +24,13 @@ links.sh            LINKS array — the one place to register a new symlink
 install/tools.sh    install_<tool> functions + run_install
 config/             the actual config files, symlinked into place
   nvim/             init.lua + lua/ (config/lazy.lua bootstrap + plugins/)
-  fish/             config.fish + conf.d/ snippets
+  fish/conf.d/      drop-in fragments (config.fish is left unmanaged on purpose)
 ```
+
+fish config is kept entirely in `conf.d/*.fish` fragments rather than
+`config.fish`, so installers that append to `config.fish` (rustup/fnm/uv) never
+touch our files. Fragments load in filename order; `zz-local-paths.fish` runs
+last so its PATH priority wins.
 
 ## How it works
 
@@ -57,11 +62,12 @@ the detect→update / else install convention; reuse `install_versioned` or
 
 ### PATH
 
-`config/fish/conf.d/00-local-paths.fish` (managed + linked) is the single source
-of PATH priority. It `--prepend --move`s every `~/.local/*/current/bin` plus
+`config/fish/conf.d/zz-local-paths.fish` (managed + linked) is the single source
+of PATH priority. The `zz-` prefix loads it last in `conf.d`, after the
+installer snippets, and `config.fish` is unmanaged/empty so nothing re-prepends
+afterwards. It `--prepend --move`s every `~/.local/*/current/bin` plus
 `~/.local/bin` to the front of PATH, so repo-installed tools shadow system ones.
-Migrated `config.fish` needs no PATH logic of its own. Upgrading a tool only
-flips its `current` symlink — PATH is untouched.
+Upgrading a tool only flips its `current` symlink — PATH is untouched.
 
 nvim note: `lua/config/lazy.lua` bootstraps lazy.nvim on first launch (auto-clones
 it and installs plugins), so a fresh machine needs no `lazy-lock.json`.

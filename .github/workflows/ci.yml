@@ -33,7 +33,7 @@ jobs:
 
           # 1. Existing-source entries link; missing-source entries warn+skip; exit 0.
           HOME="$fake_home" ./setup.sh link
-          test -L "$fake_home/.config/fish/conf.d/00-local-paths.fish" \
+          test -L "$fake_home/.config/fish/conf.d/zz-local-paths.fish" \
             || { echo "FAIL: managed conf.d snippet not linked"; exit 1; }
 
           # 2. Backup of a pre-existing real target.

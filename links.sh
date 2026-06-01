@@ -9,16 +9,18 @@
 #
 # To add a config: drop it under config/ and append one line here.
 
+# fish config lives entirely in conf.d/ drop-in fragments — config.fish itself is
+# left unmanaged so installers (rustup/fnm/uv) can append to it without touching
+# our files. Fragments load in name order; zz-local-paths runs last (PATH priority).
 LINKS=(
   "config/nvim/init.lua|$HOME/.config/nvim/init.lua"
   "config/nvim/lua|$HOME/.config/nvim/lua"
-  "config/fish/config.fish|$HOME/.config/fish/config.fish"
-  "config/fish/conf.d/00-local-paths.fish|$HOME/.config/fish/conf.d/00-local-paths.fish"
+  "config/fish/conf.d/00-locale.fish|$HOME/.config/fish/conf.d/00-locale.fish"
+  "config/fish/conf.d/10-bun.fish|$HOME/.config/fish/conf.d/10-bun.fish"
+  "config/fish/conf.d/20-venv.fish|$HOME/.config/fish/conf.d/20-venv.fish"
+  "config/fish/conf.d/30-zed-tmux.fish|$HOME/.config/fish/conf.d/30-zed-tmux.fish"
   "config/fish/conf.d/fzf.fish|$HOME/.config/fish/conf.d/fzf.fish"
-  # Enable after migrating the matching installer-generated snippets into the repo:
-  # "config/fish/conf.d/rustup.fish|$HOME/.config/fish/conf.d/rustup.fish"
-  # "config/fish/conf.d/fnm.fish|$HOME/.config/fish/conf.d/fnm.fish"
-  # "config/fish/conf.d/uv.env.fish|$HOME/.config/fish/conf.d/uv.env.fish"
+  "config/fish/conf.d/zz-local-paths.fish|$HOME/.config/fish/conf.d/zz-local-paths.fish"
 )
 
 run_links() {
