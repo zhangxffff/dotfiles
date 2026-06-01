@@ -59,7 +59,7 @@ path, otherwise a fresh install. Tools we fetch as release archives are
 version-pinned at `~/.local/<tool>/<version>` with a `current` symlink that's
 flipped atomically — so upgrades keep the old version around for rollback.
 
-Built-in installers: `rust fish node nvim claude codex lazygit fzf uv opencode`.
+Built-in installers: `rust fish node nvim claude codex lazygit fzf zellij uv opencode`.
 Versions are env-overridable, e.g. `NVIM_VERSION=v0.10.4 ./setup.sh install nvim`.
 
 **Add a tool:** add an `install_<name>` function in `install/tools.sh` (follow

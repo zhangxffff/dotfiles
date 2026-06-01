@@ -86,16 +86,18 @@ jobs:
           NVIM_VERSION="$(gh api repos/neovim/neovim/releases/latest -q .tag_name)"
           LAZYGIT_VERSION="$(gh api repos/jesseduffield/lazygit/releases/latest -q .tag_name)"
           FZF_VERSION="$(gh api repos/junegunn/fzf/releases/latest -q .tag_name)"
-          export NVIM_VERSION LAZYGIT_VERSION FZF_VERSION
-          echo "versions: nvim=$NVIM_VERSION lazygit=$LAZYGIT_VERSION fzf=$FZF_VERSION"
+          ZELLIJ_VERSION="$(gh api repos/zellij-org/zellij/releases/latest -q .tag_name)"
+          export NVIM_VERSION LAZYGIT_VERSION FZF_VERSION ZELLIJ_VERSION
+          echo "versions: nvim=$NVIM_VERSION lazygit=$LAZYGIT_VERSION fzf=$FZF_VERSION zellij=$ZELLIJ_VERSION"
 
-          ./setup.sh install nvim lazygit fzf
+          ./setup.sh install nvim lazygit fzf zellij
 
           # Each binary runs from current/bin, and current points at the version.
           "$HOME/.local/nvim/current/bin/nvim" --version | head -1
           "$HOME/.local/lazygit/current/bin/lazygit" --version | head -1
           "$HOME/.local/fzf/current/bin/fzf" --version
-          for pair in "nvim:$NVIM_VERSION" "lazygit:$LAZYGIT_VERSION" "fzf:$FZF_VERSION"; do
+          "$HOME/.local/zellij/current/bin/zellij" --version
+          for pair in "nvim:$NVIM_VERSION" "lazygit:$LAZYGIT_VERSION" "fzf:$FZF_VERSION" "zellij:$ZELLIJ_VERSION"; do
             name="${pair%%:*}"; ver="${pair##*:}"
             got="$(basename "$(readlink "$HOME/.local/$name/current")")"
             test "$got" = "$ver" || { echo "FAIL: $name current=$got expected=$ver"; exit 1; }

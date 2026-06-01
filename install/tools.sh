@@ -15,13 +15,14 @@
 #
 # Order matters in INSTALLERS: rust before fish (fish 4.x source build needs
 # cargo), node before codex (codex is an npm global).
-INSTALLERS=(rust fish node nvim claude codex lazygit fzf uv opencode)
+INSTALLERS=(rust fish node nvim claude codex lazygit fzf zellij uv opencode)
 
 # Pinned versions — change in one place. Override via env, e.g. NVIM_VERSION=v0.10.4.
 NVIM_VERSION="${NVIM_VERSION:-v0.12.2}"
 FISH_VERSION="${FISH_VERSION:-4.0.2}"
 LAZYGIT_VERSION="${LAZYGIT_VERSION:-v0.44.1}"
 FZF_VERSION="${FZF_VERSION:-v0.56.3}"
+ZELLIJ_VERSION="${ZELLIJ_VERSION:-v0.44.3}"
 
 # current_points_to <tool> <version> — true if ~/.local/<tool>/current -> <version>.
 current_points_to() {
@@ -178,6 +179,33 @@ install_fzf() {
   fi
   install_single_binary fzf "$FZF_VERSION" "$(fzf_url)" fzf || return 1
   "$HOME/.local/fzf/current/bin/fzf" --version
+}
+
+# zellij_url — release URL for the current platform. Requires OS/ARCH.
+# Zellij names assets by Rust target triple: zellij-<arch>-<unknown-linux-musl
+# |apple-darwin>.tar.gz, where arch is x86_64 or aarch64.
+zellij_url() {
+  local zarch triple
+  case "$ARCH" in
+    x86_64) zarch=x86_64 ;;
+    arm64)  zarch=aarch64 ;;
+  esac
+  case "$OS" in
+    linux)  triple="${zarch}-unknown-linux-musl" ;;
+    darwin) triple="${zarch}-apple-darwin" ;;
+  esac
+  printf 'https://github.com/zellij-org/zellij/releases/download/%s/zellij-%s.tar.gz' \
+    "$ZELLIJ_VERSION" "$triple"
+}
+
+install_zellij() {
+  detect_platform || return 1
+  if current_points_to zellij "$ZELLIJ_VERSION"; then
+    log "zellij $ZELLIJ_VERSION already current"
+    return 0
+  fi
+  install_single_binary zellij "$ZELLIJ_VERSION" "$(zellij_url)" zellij || return 1
+  "$HOME/.local/zellij/current/bin/zellij" --version
 }
 
 install_uv() {
