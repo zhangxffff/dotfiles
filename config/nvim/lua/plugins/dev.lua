@@ -37,7 +37,10 @@ return {
     -- 默认走预编译二进制(网络通畅最省事)。万一下载失败,取消下面注释用本地编译:
     -- build = "cargo build --release",  -- 需 Rust 工具链
     event = "InsertEnter",
-    dependencies = { "rafamadriz/friendly-snippets" },
+    dependencies = {
+      "rafamadriz/friendly-snippets",
+      "giuxtaposition/blink-cmp-copilot", -- Copilot as a blink source (see plugins/copilot.lua)
+    },
     opts = {
       -- "default" = C-n/C-p 选,C-y 确认(不抢 Tab,适合从 coc 习惯过来)
       -- 想要 Tab 接受改成 "super-tab"
@@ -45,10 +48,21 @@ return {
       appearance = { nerd_font_variant = "mono" },
       completion = {
         documentation = { auto_show = true, auto_show_delay_ms = 200 },
-        ghost_text = { enabled = false }, -- 留给 AI 补全(Copilot/Minuet)用,避免冲突
+        -- blink 的 ghost text 关闭:行内 ghost text 由 copilot.lua 的 suggestion
+        -- 模式负责(<M-l> 接受),避免两个 ghost text 打架。
+        ghost_text = { enabled = false },
       },
       sources = {
-        default = { "lsp", "path", "snippets", "buffer" },
+        -- copilot 作为补全源出现在菜单里,和 LSP 一起选
+        default = { "copilot", "lsp", "path", "snippets", "buffer" },
+        providers = {
+          copilot = {
+            name = "copilot",
+            module = "blink-cmp-copilot",
+            score_offset = 100, -- 让 Copilot 项靠前
+            async = true,
+          },
+        },
       },
       -- Rust 模糊匹配,缺二进制时回退 Lua 并告警
       fuzzy = { implementation = "prefer_rust_with_warning" },

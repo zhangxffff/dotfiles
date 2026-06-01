@@ -1,2 +1,6 @@
 # Backups created by symlink_one when it replaces a pre-existing real file.
 *.bak.*
+
+# nvim's plugin lockfile — not tracked (lazy.nvim bootstraps without it). It can
+# get written into the repo when nvim runs with XDG_CONFIG_HOME=./config (tests).
+config/nvim/lazy-lock.json

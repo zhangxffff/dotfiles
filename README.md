@@ -82,4 +82,6 @@ plus `~/.local/bin` to the front of PATH, so repo-installed tools shadow system
 ones. Upgrading a tool only flips its `current` symlink — PATH is untouched.
 
 nvim note: `lua/config/lazy.lua` bootstraps lazy.nvim on first launch (auto-clones
-it and installs plugins), so a fresh machine needs no `lazy-lock.json`.
+it and installs plugins), so a fresh machine needs no `lazy-lock.json`. GitHub
+Copilot is wired in (inline ghost text via copilot.lua, plus completion-menu
+items via blink-cmp-copilot) — run `:Copilot auth` once to sign in.

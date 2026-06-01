@@ -113,7 +113,8 @@ jobs:
           # lazy.nvim cloned itself and installed our declared plugins.
           lazy="$HOME/.local/share/nvim/lazy"
           for p in lazy.nvim blink.cmp nvim-lspconfig nvim-treesitter \
-                   gitsigns.nvim diffview.nvim fzf-lua which-key.nvim conform.nvim; do
+                   gitsigns.nvim diffview.nvim fzf-lua which-key.nvim conform.nvim \
+                   copilot.lua blink-cmp-copilot; do
             test -d "$lazy/$p" \
               || { echo "FAIL: plugin not installed: $p"; ls "$lazy" || true; exit 1; }
           done
