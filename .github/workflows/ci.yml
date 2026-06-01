@@ -26,17 +26,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          repo="$PWD"
 
           # Run setup.sh against a throwaway HOME so we never touch a real config.
           fake_home="$(mktemp -d)"
 
-          # 1. Existing-source entries link; missing-source entries warn+skip; exit 0.
-          HOME="$fake_home" ./setup.sh link
-          test -L "$fake_home/.config/fish/conf.d/zz-dotfiles.fish" \
-            || { echo "FAIL: managed conf.d fragment not linked"; exit 1; }
-
-          # 2. Backup of a pre-existing real target.
+          # 1. A pre-existing REAL file is backed up, then replaced by a symlink.
+          #    (Create it before the first link so the backup path is exercised.)
           mkdir -p "$fake_home/.config/nvim"
           echo "OLD CONTENT" > "$fake_home/.config/nvim/init.lua"
           HOME="$fake_home" ./setup.sh link
@@ -44,21 +39,23 @@ jobs:
             || { echo "FAIL: target not turned into a symlink"; exit 1; }
           ls "$fake_home"/.config/nvim/init.lua.bak.* >/dev/null 2>&1 \
             || { echo "FAIL: pre-existing file was not backed up"; exit 1; }
+          test -L "$fake_home/.config/fish/conf.d/zz-dotfiles.fish" \
+            || { echo "FAIL: managed conf.d fragment not linked"; exit 1; }
 
-          # 3. Idempotent — a second run makes no new backup.
+          # 2. Idempotent — a second run skips everything and makes no new backup.
           before="$(ls "$fake_home"/.config/nvim/init.lua.bak.* | wc -l)"
           HOME="$fake_home" ./setup.sh link
           after="$(ls "$fake_home"/.config/nvim/init.lua.bak.* | wc -l)"
           test "$before" -eq "$after" \
             || { echo "FAIL: re-run created a new backup (not idempotent)"; exit 1; }
 
-          # 4. Rebuild after the link is removed.
+          # 3. Rebuild after the link is removed.
           rm "$fake_home/.config/nvim/init.lua"
           HOME="$fake_home" ./setup.sh link
           test -L "$fake_home/.config/nvim/init.lua" \
             || { echo "FAIL: link not rebuilt after removal"; exit 1; }
 
-          # 5. Our single fragment coexists with a foreign conf.d file untouched.
+          # 4. Our single fragment coexists with a foreign conf.d file untouched.
           conf="$fake_home/.config/fish/conf.d"
           echo "# tool generated" > "$conf/fnm.fish"
           HOME="$fake_home" ./setup.sh link
