@@ -82,3 +82,40 @@ jobs:
             || { echo "FAIL: re-run did not detect nvim as already current"; exit 1; }
 
           echo "one-shot setup test passed on ${{ matrix.os }}"
+
+  # Proves the nvim config actually bootstraps lazy.nvim and installs its plugins
+  # headlessly (init.lua -> lua/config/lazy.lua -> import plugins), on Linux/macOS.
+  nvim-plugins:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DOTFILES_TOOLS: nvim
+    steps:
+      - uses: actions/checkout@v4
+      - name: bootstrap lazy.nvim and install plugins headlessly
+        shell: bash
+        run: |
+          set -euo pipefail
+          NVIM_VERSION="$(gh api repos/neovim/neovim/releases/latest -q .tag_name)"
+          export NVIM_VERSION
+
+          # Links config into ~/.config/nvim and installs nvim into ~/.local.
+          ./setup.sh
+
+          nvim="$HOME/.local/nvim/current/bin/nvim"
+          "$nvim" --headless "+Lazy! sync" +qa
+
+          # lazy.nvim cloned itself and installed our declared plugins.
+          lazy="$HOME/.local/share/nvim/lazy"
+          for p in lazy.nvim blink.cmp nvim-lspconfig nvim-treesitter \
+                   gitsigns.nvim diffview.nvim fzf-lua which-key.nvim conform.nvim; do
+            test -d "$lazy/$p" \
+              || { echo "FAIL: plugin not installed: $p"; ls "$lazy" || true; exit 1; }
+          done
+
+          echo "nvim plugin check passed on ${{ matrix.os }}"
