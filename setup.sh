@@ -8,6 +8,9 @@
 #
 # To scope the install set (e.g. in CI), set DOTFILES_TOOLS to a space-separated
 # list, e.g. DOTFILES_TOOLS="nvim fzf" ./setup.sh — linking always runs in full.
+#
+# To also make the installed fish the login shell (opt-in; needs sudo for
+# /etc/shells and may prompt for your password): DOTFILES_SET_SHELL=1 ./setup.sh
 set -euo pipefail
 
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,3 +23,4 @@ source "$DOTFILES_DIR/install/tools.sh"
 
 run_links
 run_install
+set_default_shell
