@@ -48,6 +48,9 @@ command -q fnm; and not set -q FNM_DIR; and fnm env --shell fish | source
 # --- fzf shell integration (guarded; needs fzf on PATH, set just above) ---
 command -q fzf; and fzf --fish | source
 
+# --- aliases ---
+command -q nvim; and alias vim nvim
+
 # --- Zed: attach each directory to its own zellij session (interactive only) ---
 # Kept last: PATH is fully configured above before this may exec into zellij.
 # `zellij attach --create` is a foreground process (unlike tmux switch-client),
