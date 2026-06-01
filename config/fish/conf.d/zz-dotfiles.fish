@@ -39,18 +39,21 @@ for d in $HOME/.local/*/current/bin
 end
 fish_add_path --global --prepend --move $HOME/.local/bin
 
+# --- fnm (node version manager): expose the default node in every shell ---
+# We install fnm into ~/.local/bin with --skip-shell, so this is what actually
+# puts node/npm on PATH. Guarded on `command -q fnm` (skip if absent) and on
+# FNM_DIR being unset (skip if a tool-generated conf.d/fnm.fish already ran it).
+command -q fnm; and not set -q FNM_DIR; and fnm env --shell fish | source
+
 # --- fzf shell integration (guarded; needs fzf on PATH, set just above) ---
 command -q fzf; and fzf --fish | source
 
-# --- Zed: attach each directory to its own tmux session (interactive only) ---
-# Kept last: PATH is fully configured above before this may exec into tmux.
-if status is-interactive; and test "$TERM_PROGRAM" = "Zed"
+# --- Zed: attach each directory to its own zellij session (interactive only) ---
+# Kept last: PATH is fully configured above before this may exec into zellij.
+# `zellij attach --create` is a foreground process (unlike tmux switch-client),
+# so exec is safe; $ZELLIJ guards against relaunching inside an existing session.
+if status is-interactive; and test "$TERM_PROGRAM" = "Zed"; and not set -q ZELLIJ; and command -q zellij
     set SESSION (basename "$PWD")
     set SESSION (string replace -ra '[^a-zA-Z0-9_.-]' '_' -- $SESSION)
-    if set -q TMUX
-        # already in tmux → switch session
-        exec tmux switch-client -t "$SESSION" 2>/dev/null; or exec tmux new-session -A -s "$SESSION"
-    else
-        exec tmux new-session -A -s "$SESSION"
-    end
+    exec zellij attach --create "$SESSION"
 end

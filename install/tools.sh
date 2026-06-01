@@ -69,13 +69,15 @@ install_fish() {
 }
 
 install_node() {
-  if ! command -v fnm >/dev/null 2>&1; then
+  if ! command -v fnm >/dev/null 2>&1 && [[ ! -x "$HOME/.local/bin/fnm" ]]; then
     require_cmd curl || return 1
     log "node: installing fnm (no shell rc changes)"
+    # Install the fnm binary into ~/.local/bin so it lands on the managed PATH;
+    # the fish fragment then runs `fnm env` to expose node/npm in every shell.
     curl -fsSL https://fnm.vercel.app/install | bash -s -- \
-      --install-dir "$HOME/.local/share/fnm" --skip-shell
+      --install-dir "$HOME/.local/bin" --skip-shell
   fi
-  local fnm_bin="$HOME/.local/share/fnm/fnm"
+  local fnm_bin="$HOME/.local/bin/fnm"
   command -v fnm >/dev/null 2>&1 && fnm_bin="$(command -v fnm)"
   log "node: installing/using LTS via fnm"
   "$fnm_bin" install --lts
@@ -118,8 +120,17 @@ install_claude() {
 }
 
 install_codex() {
+  # In a one-shot run, node was just installed via fnm but isn't on this
+  # process's PATH yet — load fnm's env so npm is available here.
+  if ! command -v npm >/dev/null 2>&1; then
+    local fnm_bin="$HOME/.local/bin/fnm"
+    [[ -x "$fnm_bin" ]] || fnm_bin="$(command -v fnm 2>/dev/null || true)"
+    if [[ -n "$fnm_bin" ]]; then
+      eval "$("$fnm_bin" env 2>/dev/null)" 2>/dev/null || true
+    fi
+  fi
   require_cmd npm || {
-    err "codex needs npm — run: ./setup.sh install node"
+    err "codex needs npm — run: ./setup.sh with node enabled first"
     return 1
   }
   if command -v codex >/dev/null 2>&1; then
