@@ -21,6 +21,13 @@ To scope the install set (linking always runs in full):
 DOTFILES_TOOLS="nvim fzf zellij" ./setup.sh
 ```
 
+Pass `fish` to also make the installed fish your login shell (uses `sudo` to add
+it to `/etc/shells` and `chsh` may prompt for your password):
+
+```sh
+./setup.sh fish
+```
+
 ## Layout
 
 ```

@@ -275,3 +275,30 @@ run_install() {
   [[ ${#failed[@]} -gt 0 ]] && err "tools failed: ${failed[*]}"
   return "$rc"
 }
+
+# set_default_shell — make the installed fish the login shell. Invoked only by
+# `./setup.sh fish`. Needs sudo to whitelist it in /etc/shells, and chsh may
+# prompt for your password; never aborts setup. Uses the stable
+# ~/.local/fish/current path (unaffected by version bumps).
+set_default_shell() {
+  case "${SHELL:-}" in
+    */fish) log "set-shell: login shell is already fish"; return 0 ;;
+  esac
+  local fish="$HOME/.local/fish/current/bin/fish"
+  if [[ ! -x "$fish" ]]; then
+    warn "set-shell: fish not installed at $fish — skipping"
+    return 0
+  fi
+
+  if ! grep -qxF "$fish" /etc/shells 2>/dev/null; then
+    log "set-shell: adding $fish to /etc/shells (sudo)"
+    if ! printf '%s\n' "$fish" | sudo tee -a /etc/shells >/dev/null; then
+      warn "set-shell: could not update /etc/shells — skipping chsh"
+      return 0
+    fi
+  fi
+
+  log "set-shell: changing login shell to fish (chsh may prompt for your password)"
+  chsh -s "$fish" || warn "set-shell: chsh failed — login shell unchanged"
+  return 0
+}
