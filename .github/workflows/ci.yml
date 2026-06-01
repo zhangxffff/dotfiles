@@ -1,0 +1,122 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: shellcheck setup.sh lib/common.sh links.sh install/tools.sh
+      - name: bash syntax check
+        run: bash -n setup.sh lib/common.sh links.sh install/tools.sh
+
+  # Runs the real one-shot ./setup.sh against the runner's actual $HOME, on both
+  # Linux/x86_64 and macOS/arm64. Linking runs in full; the install set is scoped
+  # via DOTFILES_TOOLS to the version-pinned binary tools, whose install lands in
+  # ~/.local/<tool>/current and is detected deterministically. (fish-from-source,
+  # and the PATH-detected official installers uv/claude/opencode, aren't suitable
+  # for CI.) Re-runs to prove idempotency.
+  setup:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DOTFILES_TOOLS: nvim lazygit fzf zellij
+    steps:
+      - uses: actions/checkout@v4
+      - name: one-shot setup in the real $HOME
+        shell: bash
+        run: |
+          set -euo pipefail
+          NVIM_VERSION="$(gh api repos/neovim/neovim/releases/latest -q .tag_name)"
+          LAZYGIT_VERSION="$(gh api repos/jesseduffield/lazygit/releases/latest -q .tag_name)"
+          FZF_VERSION="$(gh api repos/junegunn/fzf/releases/latest -q .tag_name)"
+          ZELLIJ_VERSION="$(gh api repos/zellij-org/zellij/releases/latest -q .tag_name)"
+          export NVIM_VERSION LAZYGIT_VERSION FZF_VERSION ZELLIJ_VERSION
+          echo "versions: nvim=$NVIM_VERSION lazygit=$LAZYGIT_VERSION fzf=$FZF_VERSION zellij=$ZELLIJ_VERSION"
+
+          # Pre-seed a real pre-existing config to exercise the backup path.
+          mkdir -p "$HOME/.config/nvim"
+          echo "OLD CONTENT" > "$HOME/.config/nvim/init.lua"
+
+          # First run: link everything + install the scoped tools, in the real $HOME.
+          ./setup.sh
+
+          # Config is linked into ~/.config and the original was backed up.
+          test -L "$HOME/.config/nvim/init.lua" \
+            || { echo "FAIL: init.lua not turned into a symlink"; exit 1; }
+          ls "$HOME"/.config/nvim/init.lua.bak.* >/dev/null 2>&1 \
+            || { echo "FAIL: pre-existing init.lua not backed up"; exit 1; }
+          test -L "$HOME/.config/fish/conf.d/zz-dotfiles.fish" \
+            || { echo "FAIL: managed conf.d fragment not linked"; exit 1; }
+
+          # Each tool is installed, runs from current/bin, and current points at it.
+          "$HOME/.local/nvim/current/bin/nvim" --version | head -1
+          "$HOME/.local/lazygit/current/bin/lazygit" --version | head -1
+          "$HOME/.local/fzf/current/bin/fzf" --version
+          "$HOME/.local/zellij/current/bin/zellij" --version
+          for pair in "nvim:$NVIM_VERSION" "lazygit:$LAZYGIT_VERSION" "fzf:$FZF_VERSION" "zellij:$ZELLIJ_VERSION"; do
+            name="${pair%%:*}"; ver="${pair##*:}"
+            got="$(basename "$(readlink "$HOME/.local/$name/current")")"
+            test "$got" = "$ver" || { echo "FAIL: $name current=$got expected=$ver"; exit 1; }
+          done
+
+          # Second run is idempotent: configs skip-linked (no new backup) and the
+          # pinned tool versions are detected as already current (no re-download).
+          before="$(ls "$HOME"/.config/nvim/init.lua.bak.* | wc -l)"
+          out="$(./setup.sh 2>&1)"
+          echo "$out"
+          after="$(ls "$HOME"/.config/nvim/init.lua.bak.* | wc -l)"
+          test "$before" -eq "$after" \
+            || { echo "FAIL: re-run created a new backup (not idempotent)"; exit 1; }
+          echo "$out" | grep -q "skip (already linked)" \
+            || { echo "FAIL: re-run did not skip already-linked configs"; exit 1; }
+          echo "$out" | grep -q "nvim $NVIM_VERSION already current" \
+            || { echo "FAIL: re-run did not detect nvim as already current"; exit 1; }
+
+          echo "one-shot setup test passed on ${{ matrix.os }}"
+
+  # Proves the nvim config actually bootstraps lazy.nvim and installs its plugins
+  # headlessly (init.lua -> lua/config/lazy.lua -> import plugins), on Linux/macOS.
+  nvim-plugins:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DOTFILES_TOOLS: nvim
+    steps:
+      - uses: actions/checkout@v4
+      - name: bootstrap lazy.nvim and install plugins headlessly
+        shell: bash
+        run: |
+          set -euo pipefail
+          NVIM_VERSION="$(gh api repos/neovim/neovim/releases/latest -q .tag_name)"
+          export NVIM_VERSION
+
+          # Links config into ~/.config/nvim and installs nvim into ~/.local.
+          ./setup.sh
+
+          nvim="$HOME/.local/nvim/current/bin/nvim"
+          "$nvim" --headless "+Lazy! sync" +qa
+
+          # lazy.nvim cloned itself and installed our declared plugins.
+          lazy="$HOME/.local/share/nvim/lazy"
+          for p in lazy.nvim blink.cmp nvim-lspconfig nvim-treesitter \
+                   gitsigns.nvim diffview.nvim fzf-lua which-key.nvim conform.nvim \
+                   copilot.lua blink-cmp-copilot; do
+            test -d "$lazy/$p" \
+              || { echo "FAIL: plugin not installed: $p"; ls "$lazy" || true; exit 1; }
+          done
+
+          echo "nvim plugin check passed on ${{ matrix.os }}"
