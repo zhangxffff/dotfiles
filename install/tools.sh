@@ -47,11 +47,10 @@ install_fish() {
     log "fish $FISH_VERSION already current"
     return 0
   fi
-  require_cmd curl tar xz cmake cc || return 1
-  command -v cargo >/dev/null 2>&1 || {
-    err "fish build needs cargo — run: ./setup.sh install rust"
-    return 1
-  }
+  # rustup installs cargo with --no-modify-path, so on a fresh one-shot run it's
+  # not yet on PATH — add it for this build before requiring it.
+  [[ -d "$HOME/.cargo/bin" ]] && PATH="$HOME/.cargo/bin:$PATH"
+  require_cmd curl tar xz cmake cc cargo || return 1
   log "fish: building $FISH_VERSION from source (this takes a few minutes)"
   local base="$HOME/.local/fish" dest="$HOME/.local/fish/$FISH_VERSION"
   local tmpd
@@ -227,7 +226,8 @@ install_opencode() {
   else
     require_cmd curl || return 1
     log "opencode: installing into ~/.local/bin"
-    OPENCODE_INSTALL_DIR="$HOME/.local/bin" curl -fsSL https://opencode.ai/install | bash
+    # The env var must reach the installer (bash), not just curl.
+    curl -fsSL https://opencode.ai/install | OPENCODE_INSTALL_DIR="$HOME/.local/bin" bash
   fi
   opencode --version 2>/dev/null || true
 }

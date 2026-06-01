@@ -8,11 +8,21 @@
 # tool-generated fnm/rustup/uv snippets — which is what lets the PATH-priority
 # block below win.
 
-# --- locale + build parallelism ---
-set -gx LANG C.UTF-8
-set -gx LC_ALL C.UTF-8
-set -gx LC_CTYPE C.UTF-8
-set -gx CI_NUM_THREADS (nproc)
+# --- locale (C.UTF-8 on Linux; stock macOS lacks it, use en_US.UTF-8 there) ---
+if test (uname) = Darwin
+    set -gx LANG en_US.UTF-8
+else
+    set -gx LANG C.UTF-8
+end
+set -gx LC_ALL $LANG
+set -gx LC_CTYPE $LANG
+
+# --- build parallelism (nproc on Linux, sysctl on macOS) ---
+if command -q nproc
+    set -gx CI_NUM_THREADS (nproc)
+else
+    set -gx CI_NUM_THREADS (sysctl -n hw.ncpu)
+end
 
 # --- bun ---
 set -gx BUN_INSTALL "$HOME/.bun"
