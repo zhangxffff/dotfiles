@@ -64,3 +64,45 @@ jobs:
 
           rm -rf "$fake_home"
           echo "link engine smoke test passed on ${{ matrix.os }}"
+
+  # Actually downloads & installs the version-pinned binary tools, exercising
+  # the real release URLs, extraction, current-flip and that the binary runs —
+  # on both Linux/x86_64 and macOS/arm64. Uses each project's latest release so
+  # the test doesn't depend on the pinned defaults still existing upstream.
+  install-net:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: install nvim/lazygit/fzf over the network
+        shell: bash
+        run: |
+          set -euo pipefail
+          NVIM_VERSION="$(gh api repos/neovim/neovim/releases/latest -q .tag_name)"
+          LAZYGIT_VERSION="$(gh api repos/jesseduffield/lazygit/releases/latest -q .tag_name)"
+          FZF_VERSION="$(gh api repos/junegunn/fzf/releases/latest -q .tag_name)"
+          export NVIM_VERSION LAZYGIT_VERSION FZF_VERSION
+          echo "versions: nvim=$NVIM_VERSION lazygit=$LAZYGIT_VERSION fzf=$FZF_VERSION"
+
+          ./setup.sh install nvim lazygit fzf
+
+          # Each binary runs from current/bin, and current points at the version.
+          "$HOME/.local/nvim/current/bin/nvim" --version | head -1
+          "$HOME/.local/lazygit/current/bin/lazygit" --version | head -1
+          "$HOME/.local/fzf/current/bin/fzf" --version
+          for pair in "nvim:$NVIM_VERSION" "lazygit:$LAZYGIT_VERSION" "fzf:$FZF_VERSION"; do
+            name="${pair%%:*}"; ver="${pair##*:}"
+            got="$(basename "$(readlink "$HOME/.local/$name/current")")"
+            test "$got" = "$ver" || { echo "FAIL: $name current=$got expected=$ver"; exit 1; }
+          done
+
+          # Idempotent: a second install detects current and downloads nothing.
+          ./setup.sh install nvim | grep -q "already current" \
+            || { echo "FAIL: second nvim install did not detect current"; exit 1; }
+
+          echo "networked install test passed on ${{ matrix.os }}"

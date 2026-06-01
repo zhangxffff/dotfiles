@@ -83,21 +83,25 @@ install_node() {
   "$fnm_bin" exec --using=lts-latest node --version
 }
 
+# nvim_url — release URL for the current platform. Requires OS/ARCH
+# (detect_platform). v0.11+ asset naming: nvim-<linux|macos>-<x86_64|arm64>.tar.gz
+nvim_url() {
+  local nos
+  case "$OS" in
+    linux)  nos=linux ;;
+    darwin) nos=macos ;;
+  esac
+  printf 'https://github.com/neovim/neovim/releases/download/%s/nvim-%s-%s.tar.gz' \
+    "$NVIM_VERSION" "$nos" "$ARCH"
+}
+
 install_nvim() {
   detect_platform || return 1
   if current_points_to nvim "$NVIM_VERSION"; then
     log "nvim $NVIM_VERSION already current"
     return 0
   fi
-  local nos
-  case "$OS" in
-    linux)  nos=linux ;;
-    darwin) nos=macos ;;
-  esac
-  # v0.11+ asset naming: nvim-<linux|macos>-<x86_64|arm64>.tar.gz
-  local asset="nvim-${nos}-${ARCH}.tar.gz"
-  local url="https://github.com/neovim/neovim/releases/download/$NVIM_VERSION/$asset"
-  install_versioned nvim "$NVIM_VERSION" "$url" 1 || return 1
+  install_versioned nvim "$NVIM_VERSION" "$(nvim_url)" 1 || return 1
   "$HOME/.local/nvim/current/bin/nvim" --version | head -1
 }
 
@@ -128,29 +132,31 @@ install_codex() {
   codex --version 2>/dev/null || true
 }
 
+# lazygit_url — release URL for the current platform. Requires OS/ARCH.
+# Asset naming: lazygit_<ver>_<Linux|Darwin>_<x86_64|arm64>.tar.gz
+lazygit_url() {
+  local lgos
+  case "$OS" in
+    linux)  lgos=Linux ;;
+    darwin) lgos=Darwin ;;
+  esac
+  printf 'https://github.com/jesseduffield/lazygit/releases/download/%s/lazygit_%s_%s_%s.tar.gz' \
+    "$LAZYGIT_VERSION" "${LAZYGIT_VERSION#v}" "$lgos" "$ARCH"
+}
+
 install_lazygit() {
   detect_platform || return 1
   if current_points_to lazygit "$LAZYGIT_VERSION"; then
     log "lazygit $LAZYGIT_VERSION already current"
     return 0
   fi
-  local lgos
-  case "$OS" in
-    linux)  lgos=Linux ;;
-    darwin) lgos=Darwin ;;
-  esac
-  local asset="lazygit_${LAZYGIT_VERSION#v}_${lgos}_${ARCH}.tar.gz"
-  local url="https://github.com/jesseduffield/lazygit/releases/download/$LAZYGIT_VERSION/$asset"
-  install_single_binary lazygit "$LAZYGIT_VERSION" "$url" lazygit || return 1
+  install_single_binary lazygit "$LAZYGIT_VERSION" "$(lazygit_url)" lazygit || return 1
   "$HOME/.local/lazygit/current/bin/lazygit" --version | head -1
 }
 
-install_fzf() {
-  detect_platform || return 1
-  if current_points_to fzf "$FZF_VERSION"; then
-    log "fzf $FZF_VERSION already current"
-    return 0
-  fi
+# fzf_url — release URL for the current platform. Requires OS/ARCH.
+# Asset naming: fzf-<ver>-<linux|darwin>_<amd64|arm64>.tar.gz
+fzf_url() {
   local fos farch
   case "$OS" in
     linux)  fos=linux ;;
@@ -160,9 +166,17 @@ install_fzf() {
     x86_64) farch=amd64 ;;
     arm64)  farch=arm64 ;;
   esac
-  local asset="fzf-${FZF_VERSION#v}-${fos}_${farch}.tar.gz"
-  local url="https://github.com/junegunn/fzf/releases/download/$FZF_VERSION/$asset"
-  install_single_binary fzf "$FZF_VERSION" "$url" fzf || return 1
+  printf 'https://github.com/junegunn/fzf/releases/download/%s/fzf-%s-%s_%s.tar.gz' \
+    "$FZF_VERSION" "${FZF_VERSION#v}" "$fos" "$farch"
+}
+
+install_fzf() {
+  detect_platform || return 1
+  if current_points_to fzf "$FZF_VERSION"; then
+    log "fzf $FZF_VERSION already current"
+    return 0
+  fi
+  install_single_binary fzf "$FZF_VERSION" "$(fzf_url)" fzf || return 1
   "$HOME/.local/fzf/current/bin/fzf" --version
 }
 
