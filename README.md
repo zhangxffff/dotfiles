@@ -24,13 +24,15 @@ links.sh            LINKS array — the one place to register a new symlink
 install/tools.sh    install_<tool> functions + run_install
 config/             the actual config files, symlinked into place
   nvim/             init.lua + lua/ (config/lazy.lua bootstrap + plugins/)
-  fish/conf.d/      drop-in fragments (config.fish is left unmanaged on purpose)
+  fish/conf.d/      zz-dotfiles.fish (config.fish is left unmanaged on purpose)
 ```
 
-fish config is kept entirely in `conf.d/*.fish` fragments rather than
-`config.fish`, so installers that append to `config.fish` (rustup/fnm/uv) never
-touch our files. Fragments load in filename order; `zz-local-paths.fish` runs
-last so its PATH priority wins.
+All our fish config lives in a single conf.d fragment,
+`conf.d/zz-dotfiles.fish`, rather than in `config.fish` — so installers that
+append to `config.fish` (rustup/fnm/uv) never touch our config, and it's the
+only conf.d file we own (no per-file link list, no orphaned links). The `zz-`
+prefix makes it load last in `conf.d`, after the tool-generated snippets, so its
+PATH-priority block wins.
 
 ## How it works
 
@@ -44,16 +46,11 @@ last so its PATH priority wins.
   replacing it (gitignored);
 - creates the symlink.
 
-`links.sh` has two arrays:
-
-- `LINKS` — one repo path → one target (a file, or a whole directory as a single
-  symlink). **Add a config:** drop the file under `config/`, append one line.
-- `LINK_DIRS` — *merge-link* a directory: every file in the repo dir is linked
-  into the target dir, coexisting with foreign files already there (used for
-  fish `conf.d`, which also holds tool-generated snippets). Here you **don't**
-  edit `links.sh` to add/remove a fragment — `link_dir` links new files and
-  prunes our own orphaned links (a leftover symlink into the repo whose source
-  was renamed/deleted). Foreign regular files are never touched.
+Each `LINKS` entry is `"<repo path>|<absolute target>"` — a file, or a whole
+directory linked as a single symlink. **Add a config:** drop the file under
+`config/`, append one line. Our fish config is one fragment
+(`config/fish/conf.d/zz-dotfiles.fish`), so it's a single stable entry that
+shares `~/.config/fish/conf.d/` with tool-generated files without colliding.
 
 ### Installing (`./setup.sh install`)
 
@@ -71,12 +68,12 @@ the detect→update / else install convention; reuse `install_versioned` or
 
 ### PATH
 
-`config/fish/conf.d/zz-local-paths.fish` (managed + linked) is the single source
-of PATH priority. The `zz-` prefix loads it last in `conf.d`, after the
-installer snippets, and `config.fish` is unmanaged/empty so nothing re-prepends
-afterwards. It `--prepend --move`s every `~/.local/*/current/bin` plus
-`~/.local/bin` to the front of PATH, so repo-installed tools shadow system ones.
-Upgrading a tool only flips its `current` symlink — PATH is untouched.
+The PATH-priority block in `config/fish/conf.d/zz-dotfiles.fish` is the single
+source of PATH order. The `zz-` prefix loads the fragment last in `conf.d`,
+after the installer snippets, and `config.fish` is unmanaged so nothing
+re-prepends afterwards. It `--prepend --move`s every `~/.local/*/current/bin`
+plus `~/.local/bin` to the front of PATH, so repo-installed tools shadow system
+ones. Upgrading a tool only flips its `current` symlink — PATH is untouched.
 
 nvim note: `lua/config/lazy.lua` bootstraps lazy.nvim on first launch (auto-clones
 it and installs plugins), so a fresh machine needs no `lazy-lock.json`.

@@ -9,31 +9,22 @@
 #
 # To add a config: drop it under config/ and append one line here.
 
-# LINKS — one repo path linked to one absolute target (per-file or a whole dir
-# as a single symlink). Add a config: drop it under config/, append one line.
+# LINKS — one repo path linked to one absolute target (a file, or a whole dir as
+# a single symlink). Add a config: drop it under config/, append one line.
+#
+# All our fish config is a single conf.d fragment (zz-dotfiles.fish) rather than
+# many files, so it's one stable entry here with no orphaned links to manage.
+# config.fish is left unmanaged so installers (rustup/fnm/uv) can append to it,
+# and the zz- prefix makes our fragment load last (PATH priority).
 LINKS=(
   "config/nvim/init.lua|$HOME/.config/nvim/init.lua"
   "config/nvim/lua|$HOME/.config/nvim/lua"
-)
-
-# LINK_DIRS — merge-link: every file in the repo dir is linked into the target
-# dir, coexisting with foreign files already there. Use this when our files must
-# share a directory with externally-managed ones. fish's conf.d is the case:
-# config.fish is left unmanaged so installers (rustup/fnm/uv) can append to it,
-# and our fragments live in conf.d/ next to the tool-generated snippets.
-# Adding/removing a fragment needs no edit here — link_dir links new files and
-# prunes our own orphaned links. Fragments load in name order; zz-local-paths
-# runs last (PATH priority).
-LINK_DIRS=(
-  "config/fish/conf.d|$HOME/.config/fish/conf.d"
+  "config/fish/conf.d/zz-dotfiles.fish|$HOME/.config/fish/conf.d/zz-dotfiles.fish"
 )
 
 run_links() {
   local entry
   for entry in "${LINKS[@]}"; do
     symlink_one "${entry%%|*}" "${entry##*|}"
-  done
-  for entry in "${LINK_DIRS[@]}"; do
-    link_dir "${entry%%|*}" "${entry##*|}"
   done
 }
