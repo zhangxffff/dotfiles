@@ -58,5 +58,15 @@ jobs:
           test -L "$fake_home/.config/nvim/init.lua" \
             || { echo "FAIL: link not rebuilt after removal"; exit 1; }
 
+          # 5. link_dir prunes our orphaned links but leaves foreign files alone.
+          conf="$fake_home/.config/fish/conf.d"
+          echo "# tool generated" > "$conf/fnm.fish"   # foreign real file
+          ln -sfn "$repo/config/fish/conf.d/GONE.fish" "$conf/GONE.fish"  # stale orphan
+          HOME="$fake_home" ./setup.sh link
+          test ! -e "$conf/GONE.fish" \
+            || { echo "FAIL: orphaned link not pruned"; exit 1; }
+          test -f "$conf/fnm.fish" && test ! -L "$conf/fnm.fish" \
+            || { echo "FAIL: foreign file was disturbed"; exit 1; }
+
           rm -rf "$fake_home"
           echo "link engine smoke test passed on ${{ matrix.os }}"

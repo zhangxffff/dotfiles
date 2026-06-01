@@ -44,7 +44,16 @@ last so its PATH priority wins.
   replacing it (gitignored);
 - creates the symlink.
 
-**Add a config:** drop the file under `config/`, append one line to `LINKS`.
+`links.sh` has two arrays:
+
+- `LINKS` — one repo path → one target (a file, or a whole directory as a single
+  symlink). **Add a config:** drop the file under `config/`, append one line.
+- `LINK_DIRS` — *merge-link* a directory: every file in the repo dir is linked
+  into the target dir, coexisting with foreign files already there (used for
+  fish `conf.d`, which also holds tool-generated snippets). Here you **don't**
+  edit `links.sh` to add/remove a fragment — `link_dir` links new files and
+  prunes our own orphaned links (a leftover symlink into the repo whose source
+  was renamed/deleted). Foreign regular files are never touched.
 
 ### Installing (`./setup.sh install`)
 
