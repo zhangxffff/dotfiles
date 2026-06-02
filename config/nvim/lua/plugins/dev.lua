@@ -261,8 +261,13 @@ return {
         "c", "cpp", "rust", "python", "bash",
         "lua", "vim", "vimdoc", "toml", "yaml", "json", "markdown", "markdown_inline", "cmake",
       }
-      -- 安装/更新 parser(异步;首次会现编译,需要 C 编译器)
-      require("nvim-treesitter").install(langs)
+      -- 安装/更新 parser(异步;首次会现编译,需要 C 编译器)。守卫:从 master
+      -- 切到 main 的第一次启动,lazy 还没 checkout main,旧 master 没有 install(),
+      -- 跳过以免 config 报错——`:Lazy sync` 切到 main 后重启即生效。
+      local nts = require("nvim-treesitter")
+      if type(nts.install) == "function" then
+        nts.install(langs)
+      end
 
       -- parser 名与 filetype 不一致的注册映射,让 vim.treesitter.start() 能识别
       vim.treesitter.language.register("bash", { "sh" })

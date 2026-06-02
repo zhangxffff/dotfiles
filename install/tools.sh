@@ -15,7 +15,7 @@
 #
 # Order matters in INSTALLERS: rust before fish (fish 4.x source build needs
 # cargo), node before codex (codex is an npm global).
-INSTALLERS=(rust fish node nvim claude codex lazygit fzf zellij uv opencode)
+INSTALLERS=(rust fish node nvim claude codex lazygit fzf zellij treesitter uv opencode)
 
 # Pinned versions — change in one place. Override via env, e.g. NVIM_VERSION=v0.10.4.
 NVIM_VERSION="${NVIM_VERSION:-v0.12.2}"
@@ -23,6 +23,7 @@ FISH_VERSION="${FISH_VERSION:-4.0.2}"
 LAZYGIT_VERSION="${LAZYGIT_VERSION:-v0.44.1}"
 FZF_VERSION="${FZF_VERSION:-v0.56.3}"
 ZELLIJ_VERSION="${ZELLIJ_VERSION:-v0.44.3}"
+TREE_SITTER_VERSION="${TREE_SITTER_VERSION:-v0.26.9}"
 
 # current_points_to <tool> <version> — true if ~/.local/<tool>/current -> <version>.
 current_points_to() {
@@ -216,6 +217,46 @@ install_zellij() {
   fi
   install_single_binary zellij "$ZELLIJ_VERSION" "$(zellij_url)" zellij || return 1
   "$HOME/.local/zellij/current/bin/zellij" --version
+}
+
+# treesitter_url — the tree-sitter CLI release asset is a bare gzipped binary
+# (NOT a tarball), named tree-sitter-<linux|macos>-<x64|arm64>.gz.
+treesitter_url() {
+  local tsos tsarch
+  case "$OS" in
+    linux)  tsos=linux ;;
+    darwin) tsos=macos ;;
+  esac
+  case "$ARCH" in
+    x86_64) tsarch=x64 ;;
+    arm64)  tsarch=arm64 ;;
+  esac
+  printf 'https://github.com/tree-sitter/tree-sitter/releases/download/%s/tree-sitter-%s-%s.gz' \
+    "$TREE_SITTER_VERSION" "$tsos" "$tsarch"
+}
+
+# install_treesitter — the tree-sitter CLI, required by nvim-treesitter's main
+# branch to build parsers. Installed as treesitter/current/bin/tree-sitter so the
+# PATH glob picks it up. Bare .gz asset, so gunzip rather than install_single_binary.
+install_treesitter() {
+  detect_platform || return 1
+  if current_points_to treesitter "$TREE_SITTER_VERSION"; then
+    log "tree-sitter CLI $TREE_SITTER_VERSION already current"
+    return 0
+  fi
+  require_cmd curl gzip || return 1
+  local base="$HOME/.local/treesitter" dest="$HOME/.local/treesitter/$TREE_SITTER_VERSION"
+  log "installing tree-sitter CLI $TREE_SITTER_VERSION"
+  local tmpd
+  tmpd="$(mktemp -d)"
+  curl -fL -o "$tmpd/ts.gz" "$(treesitter_url)"
+  mkdir -p "$dest/bin"
+  gzip -dc "$tmpd/ts.gz" > "$dest/bin/tree-sitter"
+  chmod +x "$dest/bin/tree-sitter"
+  rm -rf "$tmpd"
+  ln -sfn "$TREE_SITTER_VERSION" "$base/current"
+  log "treesitter current -> $TREE_SITTER_VERSION"
+  "$dest/bin/tree-sitter" --version
 }
 
 install_uv() {
