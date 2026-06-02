@@ -249,7 +249,8 @@ return {
   -- Treesitter:语法高亮 / 缩进
   -- main 分支(为 Neovim 0.11+/0.12 重写;master 已冻结、在 0.12 上会报
   -- "attempt to call method 'range'")。API 与 master 不同:用 install() 装
-  -- parser,高亮由 Neovim 的 vim.treesitter.start() 提供,缩进用实验性 indentexpr。
+  -- parser,高亮由 Neovim 的 vim.treesitter.start() 提供。缩进交给 Neovim 内置的
+  -- 按文件类型缩进(main 的 treesitter indentexpr 仍实验、换行会缩进错位)。
   -- ==========================================================================
   {
     "nvim-treesitter/nvim-treesitter",
@@ -273,12 +274,11 @@ return {
       vim.treesitter.language.register("bash", { "sh" })
       vim.treesitter.language.register("vimdoc", { "help" })
 
-      -- 仅当该 buffer 有可用 parser 时,开高亮 + 实验性 treesitter 缩进
+      -- 开高亮(由 Neovim 提供);缩进不设 treesitter indentexpr,沿用内置 ftplugin
+      -- 缩进 + autoindent(options.lua),换行缩进更准。
       vim.api.nvim_create_autocmd("FileType", {
         callback = function(ev)
-          if pcall(vim.treesitter.start, ev.buf) then
-            vim.bo[ev.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
-          end
+          pcall(vim.treesitter.start, ev.buf)
         end,
       })
     end,
