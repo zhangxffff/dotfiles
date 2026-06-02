@@ -2,6 +2,12 @@
 -- General editor options: line numbers + indentation. Per-language indent is
 -- further refined by treesitter and the formatters in plugins/dev.lua on save.
 
+-- Leader must be set before any <leader> mapping is created. This file is
+-- required before config.lazy, so set it here (lazy.lua sets the same values
+-- again, which is harmless).
+vim.g.mapleader = " "
+vim.g.maplocalleader = "\\"
+
 local opt = vim.opt
 
 -- line numbers
@@ -39,3 +45,6 @@ end
 vim.keymap.set("x", "<LeftRelease>", '"+y<LeftRelease>', {
   desc = "Copy mouse selection to system clipboard",
 })
+
+-- Jump back in the jumplist (same as <C-o>) on <leader>o; e.g. after gd.
+vim.keymap.set("n", "<leader>o", "<C-o>", { desc = "Jump back (jumplist)" })
