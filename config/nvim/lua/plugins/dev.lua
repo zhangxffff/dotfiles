@@ -242,22 +242,36 @@ return {
 
   -- ==========================================================================
   -- Treesitter:语法高亮 / 缩进
-  -- 用 master 分支(main 是重写版,API 破坏性变更,迁移中);若你想尝鲜可切 main
+  -- main 分支(为 Neovim 0.11+/0.12 重写;master 已冻结、在 0.12 上会报
+  -- "attempt to call method 'range'")。API 与 master 不同:用 install() 装
+  -- parser,高亮由 Neovim 的 vim.treesitter.start() 提供,缩进用实验性 indentexpr。
   -- ==========================================================================
   {
     "nvim-treesitter/nvim-treesitter",
-    branch = "master",
+    branch = "main",
     build = ":TSUpdate",
-    main = "nvim-treesitter.configs",
-    event = { "BufReadPost", "BufNewFile" },
-    opts = {
-      ensure_installed = {
+    lazy = false, -- main 分支推荐随启动加载
+    config = function()
+      local langs = {
         "c", "cpp", "rust", "python", "bash",
-        "lua", "vim", "vimdoc", "toml", "yaml", "json", "markdown", "cmake",
-      },
-      highlight = { enable = true },
-      indent = { enable = true },
-    },
+        "lua", "vim", "vimdoc", "toml", "yaml", "json", "markdown", "markdown_inline", "cmake",
+      }
+      -- 安装/更新 parser(异步;首次会现编译,需要 C 编译器)
+      require("nvim-treesitter").install(langs)
+
+      -- parser 名与 filetype 不一致的注册映射,让 vim.treesitter.start() 能识别
+      vim.treesitter.language.register("bash", { "sh" })
+      vim.treesitter.language.register("vimdoc", { "help" })
+
+      -- 仅当该 buffer 有可用 parser 时,开高亮 + 实验性 treesitter 缩进
+      vim.api.nvim_create_autocmd("FileType", {
+        callback = function(ev)
+          if pcall(vim.treesitter.start, ev.buf) then
+            vim.bo[ev.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+          end
+        end,
+      })
+    end,
   },
 
   -- ==========================================================================
