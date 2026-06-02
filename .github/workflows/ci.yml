@@ -28,7 +28,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       GH_TOKEN: ${{ github.token }}
-      DOTFILES_TOOLS: nvim lazygit fzf zellij
+      DOTFILES_TOOLS: nvim lazygit fzf zellij treesitter
     steps:
       - uses: actions/checkout@v4
       - name: one-shot setup in the real $HOME
@@ -39,8 +39,9 @@ jobs:
           LAZYGIT_VERSION="$(gh api repos/jesseduffield/lazygit/releases/latest -q .tag_name)"
           FZF_VERSION="$(gh api repos/junegunn/fzf/releases/latest -q .tag_name)"
           ZELLIJ_VERSION="$(gh api repos/zellij-org/zellij/releases/latest -q .tag_name)"
-          export NVIM_VERSION LAZYGIT_VERSION FZF_VERSION ZELLIJ_VERSION
-          echo "versions: nvim=$NVIM_VERSION lazygit=$LAZYGIT_VERSION fzf=$FZF_VERSION zellij=$ZELLIJ_VERSION"
+          TREE_SITTER_VERSION="$(gh api repos/tree-sitter/tree-sitter/releases/latest -q .tag_name)"
+          export NVIM_VERSION LAZYGIT_VERSION FZF_VERSION ZELLIJ_VERSION TREE_SITTER_VERSION
+          echo "versions: nvim=$NVIM_VERSION lazygit=$LAZYGIT_VERSION fzf=$FZF_VERSION zellij=$ZELLIJ_VERSION ts=$TREE_SITTER_VERSION"
 
           # Pre-seed a real pre-existing config to exercise the backup path.
           mkdir -p "$HOME/.config/nvim"
@@ -62,6 +63,11 @@ jobs:
           "$HOME/.local/lazygit/current/bin/lazygit" --version | head -1
           "$HOME/.local/fzf/current/bin/fzf" --version
           "$HOME/.local/zellij/current/bin/zellij" --version
+          # tree-sitter CLI installs as treesitter/current/bin/tree-sitter (binary
+          # name differs from the tool dir), so check it explicitly.
+          "$HOME/.local/treesitter/current/bin/tree-sitter" --version
+          test "$(basename "$(readlink "$HOME/.local/treesitter/current")")" = "$TREE_SITTER_VERSION" \
+            || { echo "FAIL: treesitter current != $TREE_SITTER_VERSION"; exit 1; }
           for pair in "nvim:$NVIM_VERSION" "lazygit:$LAZYGIT_VERSION" "fzf:$FZF_VERSION" "zellij:$ZELLIJ_VERSION"; do
             name="${pair%%:*}"; ver="${pair##*:}"
             got="$(basename "$(readlink "$HOME/.local/$name/current")")"
