@@ -42,9 +42,14 @@ return {
       "giuxtaposition/blink-cmp-copilot", -- Copilot as a blink source (see plugins/copilot.lua)
     },
     opts = {
-      -- "default" = C-n/C-p 选,C-y 确认(不抢 Tab,适合从 coc 习惯过来)
-      -- 想要 Tab 接受改成 "super-tab"
-      keymap = { preset = "default" },
+      -- "default" = C-n/C-p 选,C-y 确认。Tab 让给 Copilot(见 plugins/copilot.lua
+      -- 的智能 Tab),所以这里把 blink 的 Tab/S-Tab(默认是 snippet 跳转)清空,
+      -- 避免两边抢同一个键。
+      keymap = {
+        preset = "default",
+        ["<Tab>"] = {},
+        ["<S-Tab>"] = {},
+      },
       appearance = { nerd_font_variant = "mono" },
       completion = {
         documentation = { auto_show = true, auto_show_delay_ms = 200 },
