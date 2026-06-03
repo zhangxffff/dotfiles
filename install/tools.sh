@@ -24,6 +24,7 @@ LAZYGIT_VERSION="${LAZYGIT_VERSION:-v0.44.1}"
 FZF_VERSION="${FZF_VERSION:-v0.56.3}"
 ZELLIJ_VERSION="${ZELLIJ_VERSION:-v0.44.3}"
 TREE_SITTER_VERSION="${TREE_SITTER_VERSION:-v0.26.9}"
+FNM_VERSION="${FNM_VERSION:-v1.39.0}"
 
 # current_points_to <tool> <version> — true if ~/.local/<tool>/current -> <version>.
 current_points_to() {
@@ -69,6 +70,23 @@ install_fish() {
   "$dest/bin/fish" --version
 }
 
+# fnm_url — fnm release zip for the current platform (Schniz/fnm). The zip holds
+# a single `fnm` binary. We fetch from GitHub releases (reliable) rather than the
+# fnm.vercel.app install script, which has 504'd in some regions.
+fnm_url() {
+  local asset
+  case "$OS" in
+    linux)
+      case "$ARCH" in
+        x86_64) asset="fnm-linux.zip" ;;
+        arm64)  asset="fnm-arm64.zip" ;;
+      esac
+      ;;
+    darwin) asset="fnm-macos.zip" ;;
+  esac
+  printf 'https://github.com/Schniz/fnm/releases/download/%s/%s' "$FNM_VERSION" "$asset"
+}
+
 install_node() {
   # Locate an existing fnm first (PATH, then our managed location).
   local fnm_bin=""
@@ -79,18 +97,25 @@ install_node() {
   fi
 
   if [[ -z "$fnm_bin" ]]; then
-    require_cmd curl || return 1
-    # The official fnm installer downloads a .zip and needs unzip to extract it;
-    # without it the install silently fails. Check up front with a clear hint.
-    if ! command -v unzip >/dev/null 2>&1; then
-      err "node: the fnm installer needs 'unzip' — install it (e.g. sudo apt install unzip) and re-run"
+    detect_platform || return 1
+    require_cmd curl unzip || return 1 # fnm releases ship as a .zip
+    log "node: installing fnm $FNM_VERSION from GitHub releases (into ~/.local/bin)"
+    local tmpd
+    tmpd="$(mktemp -d)"
+    if ! curl -fL -o "$tmpd/fnm.zip" "$(fnm_url)"; then
+      err "node: failed to download fnm ($(fnm_url))"
+      rm -rf "$tmpd"
       return 1
     fi
-    # Install the fnm binary into ~/.local/bin so it lands on the managed PATH;
-    # the fish fragment then runs `fnm env` to expose node/npm in every shell.
-    log "node: installing fnm (no shell rc changes)"
-    curl -fsSL https://fnm.vercel.app/install | bash -s -- \
-      --install-dir "$HOME/.local/bin" --skip-shell
+    if ! unzip -q -o "$tmpd/fnm.zip" fnm -d "$tmpd"; then
+      err "node: failed to unzip fnm"
+      rm -rf "$tmpd"
+      return 1
+    fi
+    mkdir -p "$HOME/.local/bin"
+    mv "$tmpd/fnm" "$HOME/.local/bin/fnm"
+    chmod +x "$HOME/.local/bin/fnm"
+    rm -rf "$tmpd"
     fnm_bin="$HOME/.local/bin/fnm"
   fi
 
@@ -134,9 +159,8 @@ install_claude() {
     log "claude: updating"
     claude update || true
   else
-    require_cmd curl || return 1
     log "claude: installing native build into ~/.local/bin"
-    curl -fsSL https://claude.ai/install.sh | bash
+    run_remote_installer claude https://claude.ai/install.sh || return 1
   fi
   claude --version 2>/dev/null || true
 }
@@ -285,9 +309,8 @@ install_uv() {
     log "uv: self-update"
     uv self update || true
   else
-    require_cmd curl || return 1
     log "uv: installing into ~/.local/bin"
-    curl -LsSf https://astral.sh/uv/install.sh | sh
+    run_remote_installer uv https://astral.sh/uv/install.sh || return 1
   fi
   uv --version 2>/dev/null || true
 }
@@ -297,10 +320,9 @@ install_opencode() {
     log "opencode: upgrading"
     opencode upgrade || true
   else
-    require_cmd curl || return 1
     log "opencode: installing into ~/.local/bin"
-    # The env var must reach the installer (bash), not just curl.
-    curl -fsSL https://opencode.ai/install | OPENCODE_INSTALL_DIR="$HOME/.local/bin" bash
+    INSTALLER_ENV="OPENCODE_INSTALL_DIR=$HOME/.local/bin" \
+      run_remote_installer opencode https://opencode.ai/install || return 1
   fi
   opencode --version 2>/dev/null || true
 }
