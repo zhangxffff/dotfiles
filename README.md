@@ -77,6 +77,12 @@ Versions are env-overridable, e.g. `NVIM_VERSION=v0.10.4 ./setup.sh`.
 (`treesitter` installs the tree-sitter CLI, which nvim-treesitter's `main` branch
 needs to build parsers.)
 
+A few installers need system tools that aren't installed for you (you'll get a
+clear error naming the missing one): `unzip` for **node** (the fnm installer),
+`cmake` + a C compiler + `xz` for building **fish** from source, and a C
+compiler for **treesitter**/nvim parser builds. On Debian/Ubuntu:
+`sudo apt install unzip cmake build-essential xz-utils`.
+
 **Add a tool:** add an `install_<name>` function in `install/tools.sh` (follow
 the detect→update / else install convention; reuse `install_versioned` or
 `install_single_binary` for release archives), and add the name to `INSTALLERS`.
