@@ -131,6 +131,38 @@ install_single_binary() {
   log "$tool current -> $version"
 }
 
+# run_remote_installer <description> <url> [args...] — run a `curl | sh`-style
+# installer safely. Downloads it to a temp file and sanity-checks that it's
+# actually a script before executing: a region block or outage often returns an
+# HTML page with HTTP 200, which piped into a shell yields "syntax error near
+# unexpected token '<'". On a bad payload it warns and returns non-zero so the
+# caller can skip cleanly. Args after the URL are passed to the script; set
+# INSTALLER_ENV="VAR=val" to export one variable for it.
+run_remote_installer() {
+  local desc="$1" url="$2"; shift 2
+  require_cmd curl || return 1
+  local tmpf
+  tmpf="$(mktemp)"
+  if ! curl -fsSL -o "$tmpf" "$url"; then
+    err "$desc: download failed ($url)"
+    rm -f "$tmpf"
+    return 1
+  fi
+  if head -c 512 "$tmpf" | grep -qiE '<!doctype|<html|<head|App unavailable'; then
+    err "$desc: installer URL returned a web page, not a script (region-blocked or down?) — skipping"
+    rm -f "$tmpf"
+    return 1
+  fi
+  local rc=0
+  if [[ -n "${INSTALLER_ENV:-}" ]]; then
+    env "$INSTALLER_ENV" sh "$tmpf" "$@" || rc=$?
+  else
+    sh "$tmpf" "$@" || rc=$?
+  fi
+  rm -f "$tmpf"
+  return "$rc"
+}
+
 # ---- symlinking ----------------------------------------------------------
 # symlink_one <repo-relative-path> <absolute-target>
 # Idempotent. Backs up a pre-existing real file/dir before linking. A missing
