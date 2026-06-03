@@ -70,16 +70,37 @@ install_fish() {
 }
 
 install_node() {
-  if ! command -v fnm >/dev/null 2>&1 && [[ ! -x "$HOME/.local/bin/fnm" ]]; then
+  # Locate an existing fnm first (PATH, then our managed location).
+  local fnm_bin=""
+  if command -v fnm >/dev/null 2>&1; then
+    fnm_bin="$(command -v fnm)"
+  elif [[ -x "$HOME/.local/bin/fnm" ]]; then
+    fnm_bin="$HOME/.local/bin/fnm"
+  fi
+
+  if [[ -z "$fnm_bin" ]]; then
     require_cmd curl || return 1
-    log "node: installing fnm (no shell rc changes)"
+    # The official fnm installer downloads a .zip and needs unzip to extract it;
+    # without it the install silently fails. Check up front with a clear hint.
+    if ! command -v unzip >/dev/null 2>&1; then
+      err "node: the fnm installer needs 'unzip' — install it (e.g. sudo apt install unzip) and re-run"
+      return 1
+    fi
     # Install the fnm binary into ~/.local/bin so it lands on the managed PATH;
     # the fish fragment then runs `fnm env` to expose node/npm in every shell.
+    log "node: installing fnm (no shell rc changes)"
     curl -fsSL https://fnm.vercel.app/install | bash -s -- \
       --install-dir "$HOME/.local/bin" --skip-shell
+    fnm_bin="$HOME/.local/bin/fnm"
   fi
-  local fnm_bin="$HOME/.local/bin/fnm"
-  command -v fnm >/dev/null 2>&1 && fnm_bin="$(command -v fnm)"
+
+  # Verify before using, so a failed install gives a clear error (not a cryptic
+  # "No such file or directory" from running a missing binary).
+  if [[ ! -x "$fnm_bin" ]]; then
+    err "node: fnm not found at $fnm_bin after install — aborting node setup"
+    return 1
+  fi
+
   log "node: installing/using LTS via fnm"
   "$fnm_bin" install --lts
   "$fnm_bin" default lts-latest
