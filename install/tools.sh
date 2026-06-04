@@ -280,9 +280,31 @@ treesitter_url() {
     "$TREE_SITTER_VERSION" "$tsos" "$tsarch"
 }
 
+# treesitter_cargo_fallback — build the CLI from source with cargo and link it
+# into the managed dir. Used when the prebuilt binary won't run here (its glibc
+# requirement can be newer than an older distro provides).
+treesitter_cargo_fallback() {
+  local base="$1" dest="$2"
+  local cargo_bin="$HOME/.cargo/bin/cargo"
+  command -v cargo >/dev/null 2>&1 && cargo_bin="$(command -v cargo)"
+  if [[ ! -x "$cargo_bin" ]]; then
+    err "treesitter: prebuilt CLI won't run and cargo is unavailable — install rust first (./setup.sh)"
+    return 1
+  fi
+  log "treesitter: building tree-sitter-cli via cargo (a few minutes)"
+  "$cargo_bin" install tree-sitter-cli --version "${TREE_SITTER_VERSION#v}" \
+    || "$cargo_bin" install tree-sitter-cli || return 1
+  mkdir -p "$dest/bin"
+  ln -sf "$HOME/.cargo/bin/tree-sitter" "$dest/bin/tree-sitter"
+  ln -sfn "$(basename "$dest")" "$base/current"
+  log "treesitter current -> $(basename "$dest") (cargo)"
+  "$dest/bin/tree-sitter" --version
+}
+
 # install_treesitter — the tree-sitter CLI, required by nvim-treesitter's main
 # branch to build parsers. Installed as treesitter/current/bin/tree-sitter so the
-# PATH glob picks it up. Bare .gz asset, so gunzip rather than install_single_binary.
+# PATH glob picks it up. Prefer the prebuilt binary (bare .gz, so gunzip); if it
+# can't run here (e.g. its glibc is too new for this distro), build via cargo.
 install_treesitter() {
   detect_platform || return 1
   if current_points_to treesitter "$TREE_SITTER_VERSION"; then
@@ -294,14 +316,25 @@ install_treesitter() {
   log "installing tree-sitter CLI $TREE_SITTER_VERSION"
   local tmpd
   tmpd="$(mktemp -d)"
-  curl -fL -o "$tmpd/ts.gz" "$(treesitter_url)"
-  mkdir -p "$dest/bin"
-  gzip -dc "$tmpd/ts.gz" > "$dest/bin/tree-sitter"
-  chmod +x "$dest/bin/tree-sitter"
-  rm -rf "$tmpd"
-  ln -sfn "$TREE_SITTER_VERSION" "$base/current"
-  log "treesitter current -> $TREE_SITTER_VERSION"
-  "$dest/bin/tree-sitter" --version
+  if curl -fL -o "$tmpd/ts.gz" "$(treesitter_url)"; then
+    mkdir -p "$dest/bin"
+    gzip -dc "$tmpd/ts.gz" > "$dest/bin/tree-sitter"
+    chmod +x "$dest/bin/tree-sitter"
+    rm -rf "$tmpd"
+    # Verify the prebuilt binary actually runs on this system before committing.
+    if "$dest/bin/tree-sitter" --version >/dev/null 2>&1; then
+      ln -sfn "$TREE_SITTER_VERSION" "$base/current"
+      log "treesitter current -> $TREE_SITTER_VERSION (prebuilt)"
+      "$dest/bin/tree-sitter" --version
+      return 0
+    fi
+    warn "treesitter: prebuilt binary won't run here (likely glibc too old) — falling back to cargo"
+    rm -rf "${dest:?}/bin"
+  else
+    rm -rf "$tmpd"
+    warn "treesitter: prebuilt download failed — falling back to cargo"
+  fi
+  treesitter_cargo_fallback "$base" "$dest"
 }
 
 install_uv() {
