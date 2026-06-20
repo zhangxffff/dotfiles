@@ -13,10 +13,10 @@
 #          snippet as a conf.d/*.fish link instead of rewriting PATH here
 #   - Official installers are run with "don't touch my shell rc" flags.
 #
-# Order matters in INSTALLERS: node before codex (codex is an npm global).
+# Order matters in INSTALLERS: node before codex/pi (both are npm globals).
 # fish is NOT installed here — it's a prerequisite installed with your system
 # package manager (apt/dnf/brew); setup.sh aborts if it's not on PATH.
-INSTALLERS=(rust node nvim claude codex lazygit fzf zellij treesitter uv opencode)
+INSTALLERS=(rust node nvim claude codex pi lazygit fzf zellij treesitter uv opencode)
 
 # Pinned versions — change in one place. Override via env, e.g. NVIM_VERSION=v0.10.4.
 NVIM_VERSION="${NVIM_VERSION:-v0.12.2}"
@@ -139,9 +139,11 @@ install_claude() {
   claude --version 2>/dev/null || true
 }
 
-install_codex() {
-  # In a one-shot run, node was just installed via fnm but isn't on this
-  # process's PATH yet — load fnm's env so npm is available here.
+# load_npm_env — npm-global installers (codex, pi) need npm on PATH. In a
+# one-shot run node was just installed via fnm but isn't on this process's PATH
+# yet, so load fnm's env. <tool> names the caller for the error message.
+load_npm_env() {
+  local tool="$1"
   if ! command -v npm >/dev/null 2>&1; then
     local fnm_bin="$HOME/.local/bin/fnm"
     [[ -x "$fnm_bin" ]] || fnm_bin="$(command -v fnm 2>/dev/null || true)"
@@ -150,9 +152,13 @@ install_codex() {
     fi
   fi
   require_cmd npm || {
-    err "codex needs npm — run: ./setup.sh with node enabled first"
+    err "$tool needs npm — run ./setup.sh with node enabled first"
     return 1
   }
+}
+
+install_codex() {
+  load_npm_env codex || return 1
   if command -v codex >/dev/null 2>&1; then
     log "codex: updating"
     npm install -g @openai/codex@latest
@@ -161,6 +167,22 @@ install_codex() {
     npm install -g @openai/codex
   fi
   codex --version 2>/dev/null || true
+}
+
+# install_pi — the Pi coding agent CLI (binary: pi), an npm global. The official
+# pi.dev/install.sh prompts interactively and edits shell rc with no opt-out, so
+# we install via npm to keep PATH centralized and the one-shot run unattended.
+# --ignore-scripts per upstream guidance (pi needs no install lifecycle scripts).
+install_pi() {
+  load_npm_env pi || return 1
+  if command -v pi >/dev/null 2>&1; then
+    log "pi: updating"
+    npm install -g --ignore-scripts @earendil-works/pi-coding-agent@latest
+  else
+    log "pi: installing"
+    npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+  fi
+  pi --version 2>/dev/null || true
 }
 
 # lazygit_url — release URL for the current platform. Requires OS/ARCH.
