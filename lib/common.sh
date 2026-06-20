@@ -138,9 +138,15 @@ install_single_binary() {
 # unexpected token '<'". On a bad payload it warns and returns non-zero so the
 # caller can skip cleanly. Args after the URL are passed to the script; set
 # INSTALLER_ENV="VAR=val" to export one variable for it.
+#
+# Runs under bash, not sh: several of these installers (e.g. opencode) are bash
+# scripts that use bashisms like [[ ]]. Under a POSIX sh (dash on Debian) those
+# fail with "[[: not found" and the arch detection misfires ("Unsupported
+# OS/Arch"). bash is always present here (setup.sh runs under it) and executes
+# the POSIX-sh installers (uv/claude) fine too.
 run_remote_installer() {
   local desc="$1" url="$2"; shift 2
-  require_cmd curl || return 1
+  require_cmd curl bash || return 1
   local tmpf
   tmpf="$(mktemp)"
   if ! curl -fsSL -o "$tmpf" "$url"; then
@@ -155,9 +161,9 @@ run_remote_installer() {
   fi
   local rc=0
   if [[ -n "${INSTALLER_ENV:-}" ]]; then
-    env "$INSTALLER_ENV" sh "$tmpf" "$@" || rc=$?
+    env "$INSTALLER_ENV" bash "$tmpf" "$@" || rc=$?
   else
-    sh "$tmpf" "$@" || rc=$?
+    bash "$tmpf" "$@" || rc=$?
   fi
   rm -f "$tmpf"
   return "$rc"
