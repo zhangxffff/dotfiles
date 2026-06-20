@@ -31,6 +31,14 @@ jobs:
       DOTFILES_TOOLS: nvim lazygit fzf zellij treesitter
     steps:
       - uses: actions/checkout@v4
+      - name: install fish (setup.sh prerequisite)
+        shell: bash
+        run: |
+          if command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y fish
+          else
+            brew install fish
+          fi
       - name: one-shot setup in the real $HOME
         shell: bash
         run: |
@@ -103,6 +111,14 @@ jobs:
       DOTFILES_TOOLS: nvim
     steps:
       - uses: actions/checkout@v4
+      - name: install fish (setup.sh prerequisite)
+        shell: bash
+        run: |
+          if command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y fish
+          else
+            brew install fish
+          fi
       - name: bootstrap lazy.nvim and install plugins headlessly
         shell: bash
         run: |
