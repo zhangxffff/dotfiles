@@ -69,7 +69,8 @@ mirror the assertion you'd add into that workflow.
 detect→update / else-install convention (reuse `install_versioned` or
 `install_single_binary` for release archives, build the asset URL from
 `OS`/`ARCH`), then add the name to `INSTALLERS`. Order matters: `node` before
-`codex` (codex is an npm global).
+`codex`/`pi` (both are npm globals installed via the shared `load_npm_env`
+helper).
 
 **fish is not installed by this repo** — install it with your system package
 manager (apt/dnf/brew). `setup.sh` checks for it up front and aborts if it's
