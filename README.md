@@ -70,7 +70,7 @@ path, otherwise a fresh install. Tools we fetch as release archives are
 version-pinned at `~/.local/<tool>/<version>` with a `current` symlink that's
 flipped atomically — so upgrades keep the old version around for rollback.
 
-Built-in installers: `rust node nvim claude codex lazygit fzf zellij treesitter uv opencode`.
+Built-in installers: `rust node nvim claude codex pi lazygit fzf zellij treesitter uv opencode`.
 (fish itself is not installed here — use your system package manager; `./setup.sh
 fish` only sets an already-installed fish as your login shell.)
 Versions are env-overridable, e.g. `NVIM_VERSION=v0.10.4 ./setup.sh`.
