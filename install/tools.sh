@@ -13,13 +13,13 @@
 #          snippet as a conf.d/*.fish link instead of rewriting PATH here
 #   - Official installers are run with "don't touch my shell rc" flags.
 #
-# Order matters in INSTALLERS: rust before fish (fish 4.x source build needs
-# cargo), node before codex (codex is an npm global).
-INSTALLERS=(rust fish node nvim claude codex lazygit fzf zellij treesitter uv opencode)
+# Order matters in INSTALLERS: node before codex (codex is an npm global).
+# fish is NOT installed here — it's a prerequisite installed with your system
+# package manager (apt/dnf/brew); setup.sh aborts if it's not on PATH.
+INSTALLERS=(rust node nvim claude codex lazygit fzf zellij treesitter uv opencode)
 
 # Pinned versions — change in one place. Override via env, e.g. NVIM_VERSION=v0.10.4.
 NVIM_VERSION="${NVIM_VERSION:-v0.12.2}"
-FISH_VERSION="${FISH_VERSION:-4.0.2}"
 LAZYGIT_VERSION="${LAZYGIT_VERSION:-v0.44.1}"
 FZF_VERSION="${FZF_VERSION:-v0.56.3}"
 ZELLIJ_VERSION="${ZELLIJ_VERSION:-v0.44.3}"
@@ -42,32 +42,6 @@ install_rust() {
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
   fi
   "$HOME/.cargo/bin/rustc" --version 2>/dev/null || rustc --version
-}
-
-install_fish() {
-  if current_points_to fish "$FISH_VERSION"; then
-    log "fish $FISH_VERSION already current"
-    return 0
-  fi
-  # rustup installs cargo with --no-modify-path, so on a fresh one-shot run it's
-  # not yet on PATH — add it for this build before requiring it.
-  [[ -d "$HOME/.cargo/bin" ]] && PATH="$HOME/.cargo/bin:$PATH"
-  require_cmd curl tar xz cmake cc cargo || return 1
-  log "fish: building $FISH_VERSION from source (this takes a few minutes)"
-  local base="$HOME/.local/fish" dest="$HOME/.local/fish/$FISH_VERSION"
-  local tmpd
-  tmpd="$(mktemp -d)"
-  local url="https://github.com/fish-shell/fish-shell/releases/download/$FISH_VERSION/fish-$FISH_VERSION.tar.xz"
-  curl -fL -o "$tmpd/fish.tar.xz" "$url"
-  tar -xf "$tmpd/fish.tar.xz" -C "$tmpd"
-  local srcdir="$tmpd/fish-$FISH_VERSION"
-  cmake -S "$srcdir" -B "$srcdir/build" -DCMAKE_INSTALL_PREFIX="$dest"
-  cmake --build "$srcdir/build"
-  cmake --install "$srcdir/build"
-  rm -rf "$tmpd"
-  mkdir -p "$base"
-  ln -sfn "$FISH_VERSION" "$base/current"
-  "$dest/bin/fish" --version
 }
 
 # fnm_url — fnm release zip for the current platform (Schniz/fnm). The zip holds
@@ -391,31 +365,4 @@ run_install() {
 
   [[ ${#failed[@]} -gt 0 ]] && err "tools failed: ${failed[*]}"
   return "$rc"
-}
-
-# set_default_shell — make the installed fish the login shell. Invoked only by
-# `./setup.sh fish`. Needs sudo to whitelist it in /etc/shells, and chsh may
-# prompt for your password; never aborts setup. Uses the stable
-# ~/.local/fish/current path (unaffected by version bumps).
-set_default_shell() {
-  case "${SHELL:-}" in
-    */fish) log "set-shell: login shell is already fish"; return 0 ;;
-  esac
-  local fish="$HOME/.local/fish/current/bin/fish"
-  if [[ ! -x "$fish" ]]; then
-    warn "set-shell: fish not installed at $fish — skipping"
-    return 0
-  fi
-
-  if ! grep -qxF "$fish" /etc/shells 2>/dev/null; then
-    log "set-shell: adding $fish to /etc/shells (sudo)"
-    if ! printf '%s\n' "$fish" | sudo tee -a /etc/shells >/dev/null; then
-      warn "set-shell: could not update /etc/shells — skipping chsh"
-      return 0
-    fi
-  fi
-
-  log "set-shell: changing login shell to fish (chsh may prompt for your password)"
-  chsh -s "$fish" || warn "set-shell: chsh failed — login shell unchanged"
-  return 0
 }
