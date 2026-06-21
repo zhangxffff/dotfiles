@@ -42,12 +42,30 @@ return {
       "giuxtaposition/blink-cmp-copilot", -- Copilot as a blink source (see plugins/copilot.lua)
     },
     opts = {
-      -- "default" = C-n/C-p 选,C-y 确认。Tab 让给 Copilot(见 plugins/copilot.lua
-      -- 的智能 Tab),所以这里把 blink 的 Tab/S-Tab(默认是 snippet 跳转)清空,
-      -- 避免两边抢同一个键。
+      -- "default" = C-n/C-p 选,C-y 确认。
+      -- 智能 <Tab>(统一在这里管,copilot.lua 不再单独绑 Tab,避免两边抢键):
+      --   1. 菜单里已经用 C-n/C-p 选中了某项 → 接受它(LSP / snippet / path / buffer)
+      --   2. 否则若 Copilot 行内 ghost text 在显示 → 接受 Copilot
+      --   3. 否则 → 真正的 Tab(缩进)
+      -- 这样默认 Tab 仍是 Copilot,但只要 C-n 选中一个 LSP 候选,Tab 也能补全它。
       keymap = {
         preset = "default",
-        ["<Tab>"] = {},
+        ["<Tab>"] = {
+          function(cmp)
+            -- 已在 blink 菜单里选中某项 → 接受(含 LSP)
+            if cmp.is_menu_visible() and cmp.get_selected_item_idx() ~= nil then
+              return cmp.accept()
+            end
+            -- 否则优先接受 Copilot 行内建议
+            local ok, sug = pcall(require, "copilot.suggestion")
+            if ok and sug.is_visible() then
+              sug.accept()
+              return true
+            end
+            -- 都没有 → 交给下面的 fallback 插入真 Tab
+          end,
+          "fallback",
+        },
         ["<S-Tab>"] = {},
       },
       appearance = { nerd_font_variant = "mono" },
@@ -184,6 +202,8 @@ return {
           map("gd", vim.lsp.buf.definition, "定义")
           map("gD", vim.lsp.buf.declaration, "声明")
           map("gy", vim.lsp.buf.type_definition, "类型定义")
+          -- rename:0.11 内置已是 grn,这里再加个更顺手的别名
+          map("<leader>rn", vim.lsp.buf.rename, "重命名")
 
           -- inlay hints 开关(C++/Rust 看类型很有用)
           local client = vim.lsp.get_client_by_id(ev.data.client_id)
