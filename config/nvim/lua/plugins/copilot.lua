@@ -5,9 +5,10 @@
 --   * blink completion menu — via blink-cmp-copilot, wired into blink's sources
 --     in dev.lua (provider "copilot")
 --
--- Accept the inline ghost text with <Tab> (smart: if no suggestion is showing it
--- inserts a normal Tab, so indentation still works). blink's Tab is cleared in
--- dev.lua so the two don't fight; blink's own menu is driven by C-y/C-n/C-p.
+-- Accept the inline ghost text with <Tab>. The smart <Tab> itself lives in
+-- dev.lua's blink keymap (so it can see whether the blink menu has a selection
+-- and pick LSP-vs-Copilot correctly); here we just disable Copilot's own accept
+-- key so the two don't fight. blink's menu is driven by C-y/C-n/C-p.
 -- The cycle/dismiss keys stay on Alt. Run `:Copilot auth` once to sign in.
 -- ============================================================================
 
@@ -21,7 +22,7 @@ return {
         enabled = true,
         auto_trigger = true, -- show inline ghost text as you type
         keymap = {
-          accept = false, -- handled by the smart <Tab> mapping in config below
+          accept = false, -- accepted via the smart <Tab> in dev.lua's blink keymap
           accept_word = "<M-Right>",
           accept_line = false,
           next = "<M-]>",
@@ -32,20 +33,5 @@ return {
       -- Panel UI not used; completions come through inline ghost text + blink.
       panel = { enabled = false },
     },
-    config = function(_, opts)
-      require("copilot").setup(opts)
-
-      -- <Tab>: accept the Copilot suggestion if one is visible, otherwise fall
-      -- back to inserting a real Tab (so it still indents when there's nothing
-      -- to accept).
-      vim.keymap.set("i", "<Tab>", function()
-        local suggestion = require("copilot.suggestion")
-        if suggestion.is_visible() then
-          suggestion.accept()
-        else
-          vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Tab>", true, true, true), "n", false)
-        end
-      end, { desc = "Copilot: accept suggestion or insert Tab" })
-    end,
   },
 }
