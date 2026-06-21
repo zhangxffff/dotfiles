@@ -323,15 +323,26 @@ install_uv() {
 }
 
 install_opencode() {
+  # Detect an existing opencode even when ~/.local/bin isn't on this process's
+  # PATH, so an already-installed opencode self-updates instead of re-running the
+  # installer (a full re-download). Check PATH first, then our install location.
+  local oc_bin=""
   if command -v opencode >/dev/null 2>&1; then
+    oc_bin="$(command -v opencode)"
+  elif [[ -x "$HOME/.local/bin/opencode" ]]; then
+    oc_bin="$HOME/.local/bin/opencode"
+  fi
+
+  if [[ -n "$oc_bin" ]]; then
     log "opencode: upgrading"
-    opencode upgrade || true
+    "$oc_bin" upgrade || true
   else
     log "opencode: installing into ~/.local/bin"
     INSTALLER_ENV="OPENCODE_INSTALL_DIR=$HOME/.local/bin" \
       run_remote_installer opencode https://opencode.ai/install || return 1
+    oc_bin="$HOME/.local/bin/opencode"
   fi
-  opencode --version 2>/dev/null || true
+  "$oc_bin" --version 2>/dev/null || true
 }
 
 # run_install — install/update the tools in $DOTFILES_TOOLS (space-separated),
